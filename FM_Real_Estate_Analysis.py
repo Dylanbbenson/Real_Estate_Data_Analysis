@@ -24,6 +24,9 @@ import shapely
 import folium
 import contextily as ctx
 from shapely.geometry import Point
+from datetime import date
+
+current_date = date.today().strftime('%Y-%m-%d')
 
 
 # ## Get and read in data
@@ -36,7 +39,7 @@ state = 'nd'
 get_ipython().run_line_magic('run', 'zillow_data_scrape.py fargo nd')
 
 
-# In[3]:
+# In[8]:
 
 
 city = 'west fargo'
@@ -52,21 +55,21 @@ state = 'mn'
 get_ipython().run_line_magic('run', 'zillow_data_scrape.py Moorhead mn')
 
 
-# In[5]:
+# In[9]:
 
 
 #Read in data and combine into one data frame
 city = 'Fargo-Moorhead'
 
-Home_file1 = pd.read_csv("./data/Fargo_Homes_ForSale.csv")
-Home_file2 = pd.read_csv("./data/Moorhead_Homes_ForSale.csv")
-Home_file3 = pd.read_csv("./data/West-fargo_Homes_ForSale.csv")
+Home_file1 = pd.read_csv("./data/Fargo_Homes_ForSale_"+current_date+".csv")
+Home_file2 = pd.read_csv("./data/Moorhead_Homes_ForSale_"+current_date+".csv")
+Home_file3 = pd.read_csv("./data/West-fargo_Homes_ForSale_"+current_date+".csv")
 
 df = Home_file1.append([Home_file2, Home_file3])
 
-apt_file1 = pd.read_csv("./data/Fargo_Apartments_ForRental.csv")
-apt_file2 = pd.read_csv("./data/Moorhead_Apartments_ForRental.csv")
-apt_file3 = pd.read_csv("./data/West-fargo_Apartments_ForRental.csv")
+apt_file1 = pd.read_csv("./data/Fargo_Apartments_ForRental_"+current_date+".csv")
+apt_file2 = pd.read_csv("./data/Moorhead_Apartments_ForRental_"+current_date+".csv")
+apt_file3 = pd.read_csv("./data/West-fargo_Apartments_ForRental_"+current_date+".csv")
 
 df2 = apt_file1.append([apt_file2, apt_file3])
 
@@ -85,11 +88,16 @@ df2.loc[df2['zestimate'] == 0, 'zestimate'] = df2.loc[df2['zestimate'] == 0, 'un
 df2.loc[df2['zestimate'].isnull(), 'zestimate'] = df2['unformattedPrice']
 df2['best_deal'] = df2['zestimate'] - df2['unformattedPrice']
 
+df.dropna(subset=['area'], inplace=True)
+df2.dropna(subset=['area'], inplace=True)
 
-# In[6]:
+
+# In[10]:
 
 
-#Use googlemaps api to convert addresses to coordinates (you'll need to obtain one yourself)
+#Use googlemaps api to convert addresses to coordinates 
+#(you'll need to obtain an api key to make this work, otherwise comment it out)
+
 with open('credentials.json') as f:
     credentials = json.load(f)
 
@@ -125,7 +133,7 @@ df2 = df2.drop(df2[(df2['latitude'] > 47) | (df2['latitude'] < 46) | (df2['longi
 
 # ## Homes
 
-# In[7]:
+# In[11]:
 
 
 #Plot a map of Houses available
@@ -148,7 +156,7 @@ plt.show()
 
 # ### Average
 
-# In[8]:
+# In[12]:
 
 
 # calculate mean and media house
@@ -178,12 +186,16 @@ home_averages
 
 # ### Cheapest and most expensive houses available
 
-# In[9]:
+# In[13]:
 
 
 max_price = df.copy()
-max_price = max_price[['price', 'unformattedPrice', 'zestimate', 'best_deal', 'beds', 'baths', 'area']]
-max_price.sort_values("unformattedPrice")
+max_price = max_price[['unformattedPrice', 'zestimate', 'best_deal', 'beds', 'baths', 'area', 'address']]
+max_price = max_price.sort_values("unformattedPrice")
+
+#Drop houses worth 0
+zeros = max_price['unformattedPrice'] == 0
+max_price = max_price.drop(max_price[zeros].index)
 
 # format value columns with dollar sign and commas
 max_price['unformattedPrice'] = max_price['unformattedPrice'].replace('[\$\,\.]', '', regex=True).astype(int)
@@ -191,25 +203,45 @@ max_price['zestimate'] = max_price['zestimate'].replace('[\$\,\.]', '', regex=Tr
 max_price['unformattedPrice'] = max_price['unformattedPrice'].apply(lambda x: "${:,.2f}".format(x))
 max_price['zestimate'] = max_price['zestimate'].apply(lambda x: "${:,.2f}".format(x))
 
+max_price = max_price.rename(columns={'unformattedPrice': 'price'}) 
+max_price = max_price.rename(columns={'best_deal': 'difference'}) 
+
 print("Cheapest House in "+city+":")
 max_price.head(1)
 
 
-# In[10]:
+# In[14]:
 
 
 print("Most Expensive House in "+city+":")
 max_price.tail(1)
 
 
+# ### Best and Worst Deals (According to Zillow)
+
+# In[15]:
+
+
+print("Best Deal on A Home in "+city+":")
+max_price = max_price.sort_values("difference")
+max_price.tail(1)
+
+
+# In[16]:
+
+
+print("Worst Deal on A Home in "+city+":")
+max_price.head(1)
+
+
 # ### Histogram of prices
 
-# In[11]:
+# In[17]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
-plt.hist(df['unformattedPrice'], range={0, 1500000})
-plt.xlabel('Unformatted Price')
+plt.hist(df['unformattedPrice'], bins=12, range={0, 1500000})
+plt.xlabel('Price')
 plt.ylabel('Frequency')
 plt.title('Home Prices Across '+ city, fontdict={'size': 20, 'weight': 'bold'})
 plt.ticklabel_format(style='plain', axis="x")
@@ -218,7 +250,7 @@ plt.show()
 
 # ### Pie chart of builders
 
-# In[12]:
+# In[18]:
 
 
 builders = df.copy()
@@ -247,7 +279,7 @@ plt.show()
 
 # ## Pie chart of brokers
 
-# In[13]:
+# In[19]:
 
 
 brokers = df.copy()
@@ -276,7 +308,7 @@ plt.show()
 
 # ## Beds and Baths
 
-# In[14]:
+# In[20]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -288,7 +320,7 @@ plt.title('Number of Bedrooms in Available Houses Across '+city, fontdict={'size
 plt.show()
 
 
-# In[15]:
+# In[21]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -296,14 +328,14 @@ num_bins = int(df['baths'].max())
 plt.hist(df['baths'], bins=num_bins, range={df['baths'].min(), df['baths'].max()})
 plt.xlabel('Baths')
 plt.ylabel('Frequency')
-plt.title('Number of Baths in Apartment Rental Across '+ city, fontdict={'size': 15, 'weight': 'bold'})
+plt.title('Number of Baths in Available Houses Across '+ city, fontdict={'size': 15, 'weight': 'bold'})
 plt.show()
 print("Note: I couldn't get the values to line up with their respective bins. Each value represents the bin to the left.")
 
 
 # ### Scatter plot comparing Area with Price
 
-# In[16]:
+# In[22]:
 
 
 sns.set(rc={"figure.figsize":(20, 5)})
@@ -318,7 +350,7 @@ plt.show()
 
 # ### Visualize Apartment locations
 
-# In[17]:
+# In[23]:
 
 
 geometry = [Point(xy) for xy in zip(df2['longitude'],df2['latitude'])]
@@ -340,7 +372,7 @@ plt.show()
 
 # ### Averages
 
-# In[18]:
+# In[24]:
 
 
 apt_averages = df2.copy()
@@ -370,18 +402,22 @@ apt_averages
 
 # ### Cheapest and Most Expensive Apartments available
 
-# In[19]:
+# In[25]:
 
 
 max_price = df2.copy()
-max_price = max_price[['price', 'unformattedPrice', 'zestimate', 'best_deal', 'beds', 'baths', 'area']]
 max_price.sort_values("unformattedPrice")
 
+#Drop houses worth 0
+zeros = max_price['unformattedPrice'] == 0
+max_price = max_price.drop(max_price[zeros].index)
+
+max_price = max_price[['price', 'zestimate', 'best_deal', 'beds', 'baths', 'area', 'address']]
 print("Cheapest Apartment in "+city+":")
 max_price.head(1)
 
 
-# In[20]:
+# In[26]:
 
 
 print("Most Expensive Apartment in "+city+":")
@@ -390,7 +426,7 @@ max_price.tail(1)
 
 # ### Histogram of price
 
-# In[21]:
+# In[27]:
 
 
 plt.hist(df2['unformattedPrice'])
@@ -402,7 +438,7 @@ plt.show()
 
 # ### Beds, baths, and area
 
-# In[22]:
+# In[28]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -419,7 +455,7 @@ plt.show()
 
 # ### Scatter plot comparing Area with Price
 
-# In[23]:
+# In[29]:
 
 
 sns.set(rc={"figure.figsize":(15, 5)})
@@ -428,4 +464,10 @@ scatter.set_title("Correlation between Area and Price in "+ city + " Apartments 
 scatter.set_xlabel('Area (sq ft)', fontdict={'size': 15})
 scatter.set_ylabel('Price', fontdict={'size': 15})
 plt.show()
+
+
+# In[ ]:
+
+
+
 
