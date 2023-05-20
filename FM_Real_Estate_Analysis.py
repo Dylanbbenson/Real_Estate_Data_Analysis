@@ -12,6 +12,8 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import sys
+
+sys.path.append('/path/to/module')
 import googlemaps
 import geopandas as gpd
 import requests
@@ -39,7 +41,7 @@ state = 'nd'
 get_ipython().run_line_magic('run', 'zillow_data_scrape.py fargo nd')
 
 
-# In[8]:
+# In[3]:
 
 
 city = 'west fargo'
@@ -55,7 +57,7 @@ state = 'mn'
 get_ipython().run_line_magic('run', 'zillow_data_scrape.py Moorhead mn')
 
 
-# In[9]:
+# In[5]:
 
 
 #Read in data and combine into one data frame
@@ -73,26 +75,8 @@ apt_file3 = pd.read_csv("./data/West-fargo_Apartments_ForRental_"+current_date+"
 
 df2 = apt_file1.append([apt_file2, apt_file3])
 
-#Clean and sort data
-null_price = df[df["unformattedPrice"].isnull()]
-null_price2 = df2[df2["unformattedPrice"].isnull()]
-df.drop(null_price.index, inplace=True)
-df2.drop(null_price2.index, inplace=True)
 
-df.loc[df['zestimate'] == 0, 'zestimate'] = df.loc[df['zestimate'] == 0, 'unformattedPrice']
-df.loc[df['zestimate'].isnull(), 'zestimate'] = df['unformattedPrice']
-df['best_deal'] = df['zestimate'] - df['unformattedPrice']
-df.sort_values("best_deal")
-
-df2.loc[df2['zestimate'] == 0, 'zestimate'] = df2.loc[df2['zestimate'] == 0, 'unformattedPrice']
-df2.loc[df2['zestimate'].isnull(), 'zestimate'] = df2['unformattedPrice']
-df2['best_deal'] = df2['zestimate'] - df2['unformattedPrice']
-
-df.dropna(subset=['area'], inplace=True)
-df2.dropna(subset=['area'], inplace=True)
-
-
-# In[10]:
+# In[6]:
 
 
 #Use googlemaps api to convert addresses to coordinates 
@@ -133,7 +117,7 @@ df2 = df2.drop(df2[(df2['latitude'] > 47) | (df2['latitude'] < 46) | (df2['longi
 
 # ## Homes
 
-# In[11]:
+# In[7]:
 
 
 #Plot a map of Houses available
@@ -156,7 +140,7 @@ plt.show()
 
 # ### Average
 
-# In[12]:
+# In[8]:
 
 
 # calculate mean and media house
@@ -186,7 +170,7 @@ home_averages
 
 # ### Cheapest and most expensive houses available
 
-# In[13]:
+# In[9]:
 
 
 max_price = df.copy()
@@ -210,7 +194,7 @@ print("Cheapest House in "+city+":")
 max_price.head(1)
 
 
-# In[14]:
+# In[10]:
 
 
 print("Most Expensive House in "+city+":")
@@ -219,7 +203,7 @@ max_price.tail(1)
 
 # ### Best and Worst Deals (According to Zillow)
 
-# In[15]:
+# In[11]:
 
 
 print("Best Deal on A Home in "+city+":")
@@ -227,7 +211,7 @@ max_price = max_price.sort_values("difference")
 max_price.tail(1)
 
 
-# In[16]:
+# In[12]:
 
 
 print("Worst Deal on A Home in "+city+":")
@@ -236,7 +220,7 @@ max_price.head(1)
 
 # ### Histogram of prices
 
-# In[17]:
+# In[13]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -250,7 +234,7 @@ plt.show()
 
 # ### Pie chart of builders
 
-# In[18]:
+# In[14]:
 
 
 builders = df.copy()
@@ -279,7 +263,7 @@ plt.show()
 
 # ## Pie chart of brokers
 
-# In[19]:
+# In[15]:
 
 
 brokers = df.copy()
@@ -308,7 +292,7 @@ plt.show()
 
 # ## Beds and Baths
 
-# In[20]:
+# In[16]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -320,7 +304,7 @@ plt.title('Number of Bedrooms in Available Houses Across '+city, fontdict={'size
 plt.show()
 
 
-# In[21]:
+# In[17]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -335,7 +319,7 @@ print("Note: I couldn't get the values to line up with their respective bins. Ea
 
 # ### Scatter plot comparing Area with Price
 
-# In[22]:
+# In[18]:
 
 
 sns.set(rc={"figure.figsize":(20, 5)})
@@ -350,7 +334,7 @@ plt.show()
 
 # ### Visualize Apartment locations
 
-# In[23]:
+# In[19]:
 
 
 geometry = [Point(xy) for xy in zip(df2['longitude'],df2['latitude'])]
@@ -372,7 +356,7 @@ plt.show()
 
 # ### Averages
 
-# In[24]:
+# In[20]:
 
 
 apt_averages = df2.copy()
@@ -385,14 +369,12 @@ apt_averages = pd.DataFrame({
 }).transpose()
 
 apt_averages = apt_averages.round(decimals = 2)
-apt_averages = apt_averages[['unformattedPrice', 'zestimate', 'best_deal', 'beds', 'baths', 'area']]
+apt_averages = apt_averages[['unformattedPrice', 'beds', 'baths', 'area']]
 apt_averages = apt_averages.tail(3)
 
 # format value columns with dollar sign and commas
 apt_averages['unformattedPrice'] = apt_averages['unformattedPrice'].replace('[\$\,\.]', '', regex=True).astype(int)
-apt_averages['zestimate'] = apt_averages['zestimate'].replace('[\$\,\.]', '', regex=True).astype(int)
 apt_averages['unformattedPrice'] = apt_averages['unformattedPrice'].apply(lambda x: "${:,.2f}".format(x))
-apt_averages['zestimate'] = apt_averages['zestimate'].apply(lambda x: "${:,.2f}".format(x))
 
 apt_averages = apt_averages.rename(columns={'unformattedPrice': 'price'})
 
@@ -402,22 +384,19 @@ apt_averages
 
 # ### Cheapest and Most Expensive Apartments available
 
-# In[25]:
+# In[21]:
 
 
 max_price = df2.copy()
-max_price.sort_values("unformattedPrice")
+max_price = max_price.sort_values("unformattedPrice")
+max_price = max_price[['price', 'beds', 'baths', 'area', 'address']]
 
-#Drop houses worth 0
-zeros = max_price['unformattedPrice'] == 0
-max_price = max_price.drop(max_price[zeros].index)
 
-max_price = max_price[['price', 'zestimate', 'best_deal', 'beds', 'baths', 'area', 'address']]
 print("Cheapest Apartment in "+city+":")
 max_price.head(1)
 
 
-# In[26]:
+# In[22]:
 
 
 print("Most Expensive Apartment in "+city+":")
@@ -426,7 +405,7 @@ max_price.tail(1)
 
 # ### Histogram of price
 
-# In[27]:
+# In[23]:
 
 
 plt.hist(df2['unformattedPrice'])
@@ -438,7 +417,7 @@ plt.show()
 
 # ### Beds, baths, and area
 
-# In[28]:
+# In[24]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -455,7 +434,7 @@ plt.show()
 
 # ### Scatter plot comparing Area with Price
 
-# In[29]:
+# In[25]:
 
 
 sns.set(rc={"figure.figsize":(15, 5)})
@@ -464,10 +443,4 @@ scatter.set_title("Correlation between Area and Price in "+ city + " Apartments 
 scatter.set_xlabel('Area (sq ft)', fontdict={'size': 15})
 scatter.set_ylabel('Price', fontdict={'size': 15})
 plt.show()
-
-
-# In[ ]:
-
-
-
 
