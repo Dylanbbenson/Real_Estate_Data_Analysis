@@ -24,6 +24,9 @@ import shapely
 import folium
 import contextily as ctx
 from shapely.geometry import Point
+from datetime import date
+
+current_date = date.today().strftime('%Y-%m-%d')
 
 
 # ## Get and read in data
@@ -33,10 +36,10 @@ from shapely.geometry import Point
 
 city = 'Fargo' #replace your city here
 state = 'nd'   #replace your state here (abbreviation format)
-get_ipython().run_line_magic('run', 'zillow_data_scrape.py fargo nd')
+get_ipython().run_line_magic('run', 'zillow_data_scrape.py fargo nd  #replace your city and state here as well')
 
 
-# In[6]:
+# In[1]:
 
 
 df = pd.read_csv("./data/" + city + "_Homes_ForSale.csv")
@@ -62,10 +65,15 @@ df.head()
 # In[7]:
 
 
+#Use googlemaps api to convert addresses to coordinates 
+#(you'll need to obtain an api key to make this work. If you do, uncomment this portion)
+
+*()
+
 with open('credentials.json') as f:
     credentials = json.load(f)
 
-api_key = credentials['googlemaps']
+api_key = credentials['googlemaps'] 
     
 def get_lat_long(address, api_key):
     base_url = "https://maps.googleapis.com/maps/api/geocode/json?"
@@ -89,6 +97,10 @@ df = df.drop("lat_long", axis=1)
 df2["lat_long"] = df2["address"].apply(lambda x: get_lat_long(x, api_key))
 df2[["latitude", "longitude"]] = pd.DataFrame(df2["lat_long"].tolist(), index=df2.index)
 df2 = df2.drop("lat_long", axis=1)
+
+#drop coordinates that are not anywhere near our city
+df = df.drop(df[(df['latitude'] > 47) | (df['latitude'] < 46) | (df['longitude'] > -96) | (df['longitude'] < -97)].index)
+df2 = df2.drop(df2[(df2['latitude'] > 47) | (df2['latitude'] < 46) | (df2['longitude'] > -96) | (df2['longitude'] < -97)].index)
 
 
 # In[5]:
