@@ -31,7 +31,7 @@ current_date = date.today().strftime('%Y-%m-%d')
 
 # ## Get and read in data
 
-# In[5]:
+# In[ ]:
 
 
 city = 'Fargo' #replace your city here
@@ -39,71 +39,61 @@ state = 'nd'   #replace your state here (abbreviation format)
 get_ipython().run_line_magic('run', 'zillow_data_scrape.py fargo nd  #replace your city and state here as well')
 
 
-# In[1]:
+# In[6]:
 
 
-df = pd.read_csv("./data/" + city + "_Homes_ForSale.csv")
-df2 = pd.read_csv("./data/" + city + "_Apartments_ForRental.csv")
-
-null_price = df[df["unformattedPrice"].isnull()]
-null_price2 = df2[df2["unformattedPrice"].isnull()]
-df.drop(null_price.index, inplace=True)
-df2.drop(null_price2.index, inplace=True)
-
-df.loc[df['zestimate'] == 0, 'zestimate'] = df.loc[df['zestimate'] == 0, 'unformattedPrice']
-df.loc[df['zestimate'].isnull(), 'zestimate'] = df['unformattedPrice']
-df['best_deal'] = df['zestimate'] - df['unformattedPrice']
-df.sort_values("best_deal")
-
-df2.loc[df2['zestimate'] == 0, 'zestimate'] = df2.loc[df2['zestimate'] == 0, 'unformattedPrice']
-df2.loc[df2['zestimate'].isnull(), 'zestimate'] = df2['unformattedPrice']
-df2['best_deal'] = df2['zestimate'] - df2['unformattedPrice']
-df2.sort_values("unformattedPrice")
-df.head()
+df = pd.read_csv("./data/"+city+"_Homes_ForSale_"+current_date+".csv")
+df2 = pd.read_csv("./data/"+city+"_Apartments_ForRental_"+current_date+".csv")
 
 
-# In[7]:
+# In[ ]:
 
 
-#Use googlemaps api to convert addresses to coordinates 
-#(you'll need to obtain an api key to make this work. If you do, uncomment this portion)
+while True:
+    try:
 
-*()
+        #Use googlemaps api to convert addresses to coordinates 
+        #(you'll need to obtain an api key to make this work, otherwise comment it out)
 
-with open('credentials.json') as f:
-    credentials = json.load(f)
+        with open('credentials.json') as f:
+            credentials = json.load(f)
 
-api_key = credentials['googlemaps'] 
-    
-def get_lat_long(address, api_key):
-    base_url = "https://maps.googleapis.com/maps/api/geocode/json?"
-    params = {
-        "key": api_key,
-        "address": address
-    }
-    
-    response = requests.get(base_url, params=params).json()
-    if response["status"] == "OK":
-        lat = response["results"][0]["geometry"]["location"]["lat"]
-        long = response["results"][0]["geometry"]["location"]["lng"]
-        return lat, long
-    else:
-        return None, None
+        api_key = credentials['googlemaps'] 
 
-df["lat_long"] = df["address"].apply(lambda x: get_lat_long(x, api_key))
-df[["latitude", "longitude"]] = pd.DataFrame(df["lat_long"].tolist(), index=df.index)
-df = df.drop("lat_long", axis=1)
+        def get_lat_long(address, api_key):
+            base_url = "https://maps.googleapis.com/maps/api/geocode/json?"
+            params = {
+                "key": api_key,
+                "address": address
+            }
 
-df2["lat_long"] = df2["address"].apply(lambda x: get_lat_long(x, api_key))
-df2[["latitude", "longitude"]] = pd.DataFrame(df2["lat_long"].tolist(), index=df2.index)
-df2 = df2.drop("lat_long", axis=1)
+            response = requests.get(base_url, params=params).json()
+            if response["status"] == "OK":
+                lat = response["results"][0]["geometry"]["location"]["lat"]
+                long = response["results"][0]["geometry"]["location"]["lng"]
+                return lat, long
+            else:
+                return None, None
 
-#drop coordinates that are not anywhere near our city
-df = df.drop(df[(df['latitude'] > 47) | (df['latitude'] < 46) | (df['longitude'] > -96) | (df['longitude'] < -97)].index)
-df2 = df2.drop(df2[(df2['latitude'] > 47) | (df2['latitude'] < 46) | (df2['longitude'] > -96) | (df2['longitude'] < -97)].index)
+        df["lat_long"] = df["address"].apply(lambda x: get_lat_long(x, api_key))
+        df[["latitude", "longitude"]] = pd.DataFrame(df["lat_long"].tolist(), index=df.index)
+        df = df.drop("lat_long", axis=1)
+
+        df2["lat_long"] = df2["address"].apply(lambda x: get_lat_long(x, api_key))
+        df2[["latitude", "longitude"]] = pd.DataFrame(df2["lat_long"].tolist(), index=df2.index)
+        df2 = df2.drop("lat_long", axis=1)
+
+        #drop coordinates that are not anywhere near our city
+        df = df.drop(df[(df['latitude'] > 47) | (df['latitude'] < 46) | (df['longitude'] > -96) | (df['longitude'] < -97)].index)
+        df2 = df2.drop(df2[(df2['latitude'] > 47) | (df2['latitude'] < 46) | (df2['longitude'] > -96) | (df2['longitude'] < -97)].index)
+
+        break  # exit loop if no errors
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        continue 
 
 
-# In[5]:
+# In[ ]:
 
 
 #drop coordinates that are not anywhere near our city
@@ -113,7 +103,7 @@ df2 = df2.drop(df2[(df2['latitude'] > 47) | (df2['latitude'] < 46) | (df2['longi
 
 # ## Homes
 
-# In[6]:
+# In[7]:
 
 
 #Plot a map of Houses available
@@ -141,7 +131,7 @@ plt.show()
 
 # ### averages of price and best deal
 
-# In[1]:
+# In[ ]:
 
 
 # calculate mean and median house
@@ -237,37 +227,9 @@ print("Note: This chart doesn't include houses where the construction company wa
 plt.show()
 
 
-# ## Pie chart of brokers
-
-# In[12]:
-
-
-brokers = df.copy()
-
-to_replace = [', llc', 'llc', ', inc']
-for substring in to_replace:
-    brokers['brokerName'] = brokers['brokerName'].str.replace(substring, '')
-
-broker_count = brokers["brokerName"].value_counts()
-
-total = broker_count.sum()
-threshold = 0.02
-
-broker_percent = broker_count/broker_count.sum()
-other_percent = broker_percent[broker_percent < threshold].sum()
-broker_percent = broker_percent[broker_percent >= threshold]
-broker_percent["other (<2% share)"] = other_percent
-
-broker_percent.plot.pie(figsize=(15, 10), autopct='%1.1f%%', colors=['red', 'green', 'blue', 'purple', 'orange', 'pink', 'yellow', 'maroon', 'magenta', 'turquoise' ])
-plt.title("Brokerage Companies' Share of Houses Currently Available for Sale in "+city+":", fontdict={'size': 15, 'weight': 'bold'})
-plt.ylabel("")
-print("Note: This chart doesn't include houses where the brokerage was unlisted")
-plt.show()
-
-
 # ## Beds and Baths
 
-# In[13]:
+# In[12]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -279,7 +241,7 @@ plt.title('Number of Bedrooms in Available Houses Across '+city, fontdict={'size
 plt.show()
 
 
-# In[14]:
+# In[13]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -293,7 +255,7 @@ plt.show()
 
 # ### Scatter plot comparing Area with Price
 
-# In[15]:
+# In[14]:
 
 
 sns.set(rc={"figure.figsize":(20, 5)})
@@ -308,7 +270,7 @@ plt.show()
 
 # ### Visualize Apartment locations
 
-# In[16]:
+# In[15]:
 
 
 geometry = [Point(xy) for xy in zip(df2['longitude'],df2['latitude'])]
@@ -335,7 +297,7 @@ plt.show()
 
 # ### Averages
 
-# In[2]:
+# In[24]:
 
 
 apt_averages = df2.copy()
@@ -348,14 +310,12 @@ apt_averages = pd.DataFrame({
 }).transpose()
 
 apt_averages = apt_averages.round(decimals = 2)
-apt_averages = apt_averages[['unformattedPrice', 'zestimate', 'best_deal', 'beds', 'baths', 'area']]
+apt_averages = apt_averages[['unformattedPrice', 'beds', 'baths', 'area']]
 apt_averages = apt_averages.tail(3)
 
 # format value columns with dollar sign and commas
 apt_averages['unformattedPrice'] = apt_averages['unformattedPrice'].replace('[\$\,\.]', '', regex=True).astype(int)
-apt_averages['zestimate'] = apt_averages['zestimate'].replace('[\$\,\.]', '', regex=True).astype(int)
 apt_averages['unformattedPrice'] = apt_averages['unformattedPrice'].apply(lambda x: "${:,.2f}".format(x))
-apt_averages['zestimate'] = apt_averages['zestimate'].apply(lambda x: "${:,.2f}".format(x))
 
 apt_averages = apt_averages.rename(columns={'unformattedPrice': 'price'}) 
 
@@ -363,17 +323,17 @@ print('Average Apartment For Rental in '+ city + ': ')
 apt_averages
 
 
-# In[18]:
+# In[26]:
 
 
 max_price = df2.copy()
-max_price = max_price[['price', 'unformattedPrice', 'zestimate', 'best_deal', 'beds', 'baths', 'area']]
+max_price = max_price[['price', 'unformattedPrice', 'beds', 'baths', 'area']]
 max_price.sort_values("unformattedPrice")
 print("Cheapest Apartment in "+city+":")
 max_price.head(1)
 
 
-# In[19]:
+# In[18]:
 
 
 print("Most Expensive Apartment in "+city+":")
@@ -382,7 +342,7 @@ max_price.tail(1)
 
 # ### Histogram of price
 
-# In[20]:
+# In[19]:
 
 
 plt.hist(df2['unformattedPrice'])
@@ -394,7 +354,7 @@ plt.show()
 
 # ## Beds, baths, and area
 
-# In[21]:
+# In[20]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -407,7 +367,7 @@ plt.ylim(0, 25)
 plt.show()
 
 
-# In[22]:
+# In[21]:
 
 
 sns.set(rc={"figure.figsize":(5, 5)})
@@ -422,7 +382,7 @@ plt.show()
 
 # ## Scatter plot comparing Area with Price
 
-# In[23]:
+# In[22]:
 
 
 sns.set(rc={"figure.figsize":(15, 5)})

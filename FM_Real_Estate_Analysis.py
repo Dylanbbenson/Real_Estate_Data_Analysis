@@ -5,7 +5,6 @@
 
 
 import requests
-import re
 import json
 import pandas as pd
 import numpy as np
@@ -79,40 +78,48 @@ df2 = apt_file1.append([apt_file2, apt_file3])
 # In[6]:
 
 
-#Use googlemaps api to convert addresses to coordinates 
-#(you'll need to obtain an api key to make this work, otherwise comment it out)
+while True:
+    try:
 
-with open('credentials.json') as f:
-    credentials = json.load(f)
+        #Use googlemaps api to convert addresses to coordinates 
+        #(you'll need to obtain an api key to make this work, otherwise comment it out)
 
-api_key = credentials['googlemaps'] 
-    
-def get_lat_long(address, api_key):
-    base_url = "https://maps.googleapis.com/maps/api/geocode/json?"
-    params = {
-        "key": api_key,
-        "address": address
-    }
-    
-    response = requests.get(base_url, params=params).json()
-    if response["status"] == "OK":
-        lat = response["results"][0]["geometry"]["location"]["lat"]
-        long = response["results"][0]["geometry"]["location"]["lng"]
-        return lat, long
-    else:
-        return None, None
+        with open('credentials.json') as f:
+            credentials = json.load(f)
 
-df["lat_long"] = df["address"].apply(lambda x: get_lat_long(x, api_key))
-df[["latitude", "longitude"]] = pd.DataFrame(df["lat_long"].tolist(), index=df.index)
-df = df.drop("lat_long", axis=1)
+        api_key = credentials['googlemaps'] 
 
-df2["lat_long"] = df2["address"].apply(lambda x: get_lat_long(x, api_key))
-df2[["latitude", "longitude"]] = pd.DataFrame(df2["lat_long"].tolist(), index=df2.index)
-df2 = df2.drop("lat_long", axis=1)
+        def get_lat_long(address, api_key):
+            base_url = "https://maps.googleapis.com/maps/api/geocode/json?"
+            params = {
+                "key": api_key,
+                "address": address
+            }
 
-#drop coordinates that are not anywhere near our city
-df = df.drop(df[(df['latitude'] > 47) | (df['latitude'] < 46) | (df['longitude'] > -96) | (df['longitude'] < -97)].index)
-df2 = df2.drop(df2[(df2['latitude'] > 47) | (df2['latitude'] < 46) | (df2['longitude'] > -96) | (df2['longitude'] < -97)].index)
+            response = requests.get(base_url, params=params).json()
+            if response["status"] == "OK":
+                lat = response["results"][0]["geometry"]["location"]["lat"]
+                long = response["results"][0]["geometry"]["location"]["lng"]
+                return lat, long
+            else:
+                return None, None
+
+        df["lat_long"] = df["address"].apply(lambda x: get_lat_long(x, api_key))
+        df[["latitude", "longitude"]] = pd.DataFrame(df["lat_long"].tolist(), index=df.index)
+        df = df.drop("lat_long", axis=1)
+
+        df2["lat_long"] = df2["address"].apply(lambda x: get_lat_long(x, api_key))
+        df2[["latitude", "longitude"]] = pd.DataFrame(df2["lat_long"].tolist(), index=df2.index)
+        df2 = df2.drop("lat_long", axis=1)
+
+        #drop coordinates that are not anywhere near our city
+        df = df.drop(df[(df['latitude'] > 47) | (df['latitude'] < 46) | (df['longitude'] > -96) | (df['longitude'] < -97)].index)
+        df2 = df2.drop(df2[(df2['latitude'] > 47) | (df2['latitude'] < 46) | (df2['longitude'] > -96) | (df2['longitude'] < -97)].index)
+
+        break  # exit loop if no errors
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        continue 
 
 
 # ## Homes
@@ -261,38 +268,9 @@ print("Note: This chart doesn't include houses where the construction company wa
 plt.show()
 
 
-# ## Pie chart of brokers
-
-# In[15]:
-
-
-brokers = df.copy()
-
-to_replace = [', llc', 'llc', ', inc']
-for substring in to_replace:
-    brokers['brokerName'] = brokers['brokerName'].str.replace(substring, '')
-
-broker_count = brokers["brokerName"].value_counts()
-
-# create new category that groups brokers making up <2% of total
-total = broker_count.sum()
-threshold = 0.02
-
-broker_percent = broker_count/broker_count.sum()
-other_percent = broker_percent[broker_percent < threshold].sum()
-broker_percent = broker_percent[broker_percent >= threshold]
-broker_percent["other (<2% share)"] = other_percent
-
-broker_percent.plot.pie(figsize=(15, 10), autopct='%1.1f%%', colors=['red', 'green', 'blue', 'purple', 'orange', 'pink', 'yellow', 'maroon', 'magenta', 'turquoise' ])
-plt.title("Brokerage Companies' Share of Houses Currently Available for Sale in Fargo-Moorhead", fontdict={'size': 15, 'weight': 'bold'})
-plt.ylabel("")
-print("Note: This chart doesn't include houses where the brokerage was unlisted")
-plt.show()
-
-
 # ## Beds and Baths
 
-# In[16]:
+# In[15]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -304,7 +282,7 @@ plt.title('Number of Bedrooms in Available Houses Across '+city, fontdict={'size
 plt.show()
 
 
-# In[17]:
+# In[16]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -319,7 +297,7 @@ print("Note: I couldn't get the values to line up with their respective bins. Ea
 
 # ### Scatter plot comparing Area with Price
 
-# In[18]:
+# In[17]:
 
 
 sns.set(rc={"figure.figsize":(20, 5)})
@@ -334,7 +312,7 @@ plt.show()
 
 # ### Visualize Apartment locations
 
-# In[19]:
+# In[18]:
 
 
 geometry = [Point(xy) for xy in zip(df2['longitude'],df2['latitude'])]
@@ -356,7 +334,7 @@ plt.show()
 
 # ### Averages
 
-# In[20]:
+# In[19]:
 
 
 apt_averages = df2.copy()
@@ -384,7 +362,7 @@ apt_averages
 
 # ### Cheapest and Most Expensive Apartments available
 
-# In[21]:
+# In[20]:
 
 
 max_price = df2.copy()
@@ -396,7 +374,7 @@ print("Cheapest Apartment in "+city+":")
 max_price.head(1)
 
 
-# In[22]:
+# In[21]:
 
 
 print("Most Expensive Apartment in "+city+":")
@@ -405,7 +383,7 @@ max_price.tail(1)
 
 # ### Histogram of price
 
-# In[23]:
+# In[22]:
 
 
 plt.hist(df2['unformattedPrice'])
@@ -417,7 +395,7 @@ plt.show()
 
 # ### Beds, baths, and area
 
-# In[24]:
+# In[23]:
 
 
 sns.set(rc={"figure.figsize":(10, 5)})
@@ -434,7 +412,7 @@ plt.show()
 
 # ### Scatter plot comparing Area with Price
 
-# In[25]:
+# In[24]:
 
 
 sns.set(rc={"figure.figsize":(15, 5)})
